@@ -1,0 +1,205 @@
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>My Matching Game</title>
+  <meta name="description" content="My Matching Game">
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Cinzel:900|Raleway:600" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+	<div id="titlebar">
+		<h1>My Matching Game</h1>
+		<h1 id="turn-counter"></h1>
+		<button class="new-button"><h1>New Game</h1></button>
+	</div>
+
+	<div id="main">
+		<table id="player-list"></table>
+		<div id="game"></div>
+	</div>
+		
+	<!-- new game modal -->
+	<div id="new-modal" class="overlay">
+	  <div class="modal-content">
+	    	<h1>Welcome to My Matching Game!</h1>
+	    	<p id="intro-message"> Match the pairs to get points and get the 
+	    		highest score! Enter the number of players and pairs.
+	    	</p>
+	    	<table>
+	    		<tr><td>Number of Players:</td> <td><select id="sel-players"></select></td></tr>
+	     		<tr><td>Number of Pairs:</td> <td><select id="sel-pairs"></select></td></tr>
+	     	</table>
+	    	<button class="play-button"><h1>Play!</h1></button>
+	    </div>
+	</div>
+
+	<!-- win message modal -->
+	<div id="win-modal" class="overlay" hidden>
+	  <div class="modal-content">
+	    	<h1>Congratulations!</h1>
+	    	<p id="win-message"></p>
+	    	<button class="new-button"><h1>New Game</h1></button>
+	    </div>
+	</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script>
+	const maxPairs = 15;
+	let curr, turn = 0, players = []; // global variables that keep track of the score and turn order
+
+	// set up select elements
+	let selPlayersHtml = "", selPairsHtml = "";
+
+	for (let i = 1; i <= maxPairs; i++) {
+		if (i <= 5) selPlayersHtml += "<option>" + i + "</option>"
+		selPairsHtml += "<option>" + i + "</option>"
+	}
+
+	$("#sel-players").html(selPlayersHtml);
+	$("#sel-pairs").html(selPairsHtml);
+
+	// starts a new game, show intro modal, and hides win modal (if applicable)
+	$(".new-button").click(function() {
+		$("#win-modal").hide();
+		$("#new-modal").show();
+	});
+
+	// Enters information taken from the intro modal
+	$(".play-button").click(function() {
+		let players = document.getElementById("sel-players"), 
+			pairs = document.getElementById("sel-pairs");
+		
+
+		setup(players.options[players.selectedIndex].text, pairs.options[pairs.selectedIndex].text);
+		$("#new-modal").css('animation-name','animatehide');
+		$("#new-modal").hide();
+	});
+
+	// on card click
+	$("#game").on("click", ".card", function() {
+		if ($(this).hasClass("disabled")) return;
+		$(this).addClass("card-shown"); // .card-shown is a temporary class
+		$(this).find("h2").show();
+
+		
+		let shownGroup = $("#game").find(".card-shown"), len = shownGroup.length;
+
+		// once a pair is selected
+		if (len % 2 == 0) {
+
+			 // on a wrong pair
+			 if ($(shownGroup[len - 1]).text() != $(shownGroup[len - 2]).text()) {
+				$(shownGroup[0]).addClass("card-wrong");
+				$(shownGroup[1]).addClass("card-wrong");
+
+				$(".clickable").addClass("disabled");
+
+				// setTimeout gives the user time to see the mistake
+				setTimeout(function() { 
+					$(".clickable").removeClass("disabled");
+
+					$(shownGroup[0]).find("h2").hide();
+					$(shownGroup[1]).find("h2").hide();
+
+					$(shownGroup[0]).removeClass("card-wrong");
+					$(shownGroup[1]).removeClass("card-wrong"); 
+				}, 3000);
+
+			// on a correct pair
+			} else {
+				$(shownGroup[0]).removeClass("clickable");
+				$(shownGroup[1]).removeClass("clickable");
+				
+				$(shownGroup[0]).addClass("card-correct");
+				$(shownGroup[1]).addClass("card-correct");
+				
+				$(shownGroup[0]).prop("disabled",true);
+				$(shownGroup[1]).prop("disabled",true);
+				
+				// updates player scores
+				$("#" + (curr + 1)).find(".score").html("<h2>" + ++players[curr] + "</h2>");
+			}
+
+			// ensures the size of shownGroup does not get larger than two
+			$(shownGroup[0]).removeClass("card-shown");
+			$(shownGroup[1]).removeClass("card-shown");
+
+			if ($("#game").find(".clickable").length == 0) {
+				// $('#turn-counter').html("Congratulations!");
+				let active = $('.active-player');
+				$('#win-modal').show();
+				$('#win-message').text(active.find('.player').text() + " won with " 
+					+ active.find('.score').text() + " points in " + ++turn + " turns.")
+
+			} else {
+
+				// changes player turns
+				$("#" + (curr + 1)).removeClass('active-player');
+
+				curr = ++turn % players.length;
+				$("#" + (curr + 1)).addClass('active-player');
+
+				$('#turn-counter').html("Turn " + (turn + 1));
+			}
+		}
+
+		
+	});
+
+	/* Sets up new game environment */
+	function setup(playersIn, pairsIn) {
+		let numPlayers = parseInt(playersIn), numPairs = parseInt(pairsIn), 
+		pairs = [], playHtml = "", cardsHtml = "<div class='row'>";
+
+		turn = 0;
+		$("#turn-counter").text("Turn 1");
+
+		// instantiates global variable `players`
+		for (let i = 0; i < numPlayers; i++) {
+			players[i] = 0;
+			playHtml += "<tr class='player' id='" + (i + 1) 
+						+ "'><td class='player'><h2>Player " + (i + 1) + "</h2></td>" 
+						+ " <td class='score'><h2>0</h2></td></tr>";
+		}
+
+		$("#player-list").html(playHtml);
+		$("#1").addClass("active-player");
+		curr = 0;
+
+
+		for (let i = 0; i < numPairs; i++) pairs[i] = 2;
+
+		// instantiates values of matching cards
+		let numCards = numPairs * 2; 
+		for (let i = 0; i < numCards; i++) {
+			let val = getRandomInt(0,numPairs);
+
+			while (pairs[val] == 0) {
+				val = getRandomInt(0,numPairs);
+			}
+
+			pairs[val]--;
+			cardsHtml += "<div class='card clickable'><h2 class='card-text' hidden>" + (val + 1) + "</h2></div>"
+			if ((i + 1) % Math.floor(Math.sqrt(numCards)) == 0) cardsHtml += "</div><div class='row'>"
+		}
+
+		$("#game").html(cardsHtml + "</div>")
+	}
+
+/* HELPERS ****************************************************************************************/
+	// from mozilla.org, get random integer
+	function getRandomInt(min, max) {
+	  min = Math.ceil(min);
+	  max = Math.floor(max);
+	  return Math.floor(Math.random() * (max - min)) + min;
+	}
+
+
+</script>
+
+</body>
+</html>
